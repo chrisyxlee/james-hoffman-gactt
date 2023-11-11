@@ -3,18 +3,26 @@ from typing import Any, Dict, List, Tuple
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib_venn import venn3
 
 ZIP_CODE_HEADER = "What is your ZIP code?"
 GENDER_HEADER = "Gender"
-FAVORITE_COFFEE = "Lastly, what was your favorite overall coffee?"
 NUMBER_OF_CHILDREN = "Number of Children"
 POLITICS = "Political Affiliation"
 EDUCATION_LEVEL = "Education Level"
+# TODO: fix sorting for this column
 HOUSEHOLD_INCOME = "Household Income"
+# TODO: fix sorting for this column
 AGE_HEADER = "What is your age?"
 COFFEE_LOCATION_PREFIX = "Where do you typically drink coffee?"
 COFFEE_EXPERTISE = "Lastly, how would you rate your own coffee expertise?"
 COFFEE_SPEND = "In total, much money do you typically spend on coffee in a month?"
+COFFEE_CUPS = "How many cups of coffee do you typically drink per day?"
+COFFEE_FAVORITE = "Lastly, what was your favorite overall coffee?"
+
+
+def filename(s: str) -> str:
+    return s.replace(" ", "-").replace(")", "").replace("(", "").replace("#", "num")
 
 
 def drop_in_place(df: pd.DataFrame, column: str) -> None:
@@ -67,10 +75,9 @@ def single_dimension_report(df: pd.DataFrame) -> None:
 
 
 def frequency_single(df: pd.DataFrame, column: str) -> Tuple[List[Any], List[int]]:
-    frequency: Dict[int, int] = {}
+    frequency: Dict[Any, int] = {}
     values = df[column].unique()
     for value in values:
-        print(value)
         if value is None or (isinstance(value, float) and np.isnan(value)):
             continue
 
@@ -91,14 +98,11 @@ def frequency_single(df: pd.DataFrame, column: str) -> Tuple[List[Any], List[int
 
 def display_pie_chart(df: pd.DataFrame, column: str) -> None:
     labels, counts = frequency_single(df, column)
-    plt.pie(counts, labels=labels, autopct="%1.1f%%")
-    plt.title(column)
-    plt.tight_layout()
+    fig, ax = plt.subplots()
+    ax.pie(counts, labels=labels, autopct="%1.1f%%")
+    ax.set_title(column)
+    fig.savefig(f"tmp/pie_{filename(column)}", bbox_inches="tight")
     plt.show()
-
-
-def remove_parens(s: str) -> str:
-    return s.strip("() ")
 
 
 def is_safe(x: Any) -> bool:
@@ -148,20 +152,19 @@ def display_stacked_bar_chart(
     fig, ax = plt.subplots()
     bottom = np.zeros(len(x_labels))
     for boolean, weight_count in weight_counts.items():
-        p = ax.bar(x_labels, weight_count, width, label=boolean, bottom=bottom)
+        ax.bar(x_labels, weight_count, width, label=boolean, bottom=bottom)
         bottom += weight_count
 
     ax.set_title(title)
     # Legend on center right
-    legend = ax.legend(
+    ax.legend(
         loc="center left",
         bbox_to_anchor=(0.95, 0.5),
         # reverse ordering
         labelspacing=-2.5,
         frameon=False,
     )
-    #  fig.subplots_adjust(right=0.2)
-    fig.savefig("samplefigure", bbox_inches="tight")
+    fig.savefig(f"tmp/bar_{filename(title)}", bbox_inches="tight")
 
     plt.show()
 
@@ -171,13 +174,19 @@ def main():
 
     display_stacked_bar_chart(
         df,
-        column_x=FAVORITE_COFFEE,
+        column_x=AGE_HEADER,
+        column_y=COFFEE_CUPS,
+        title="# cups of coffee by age",
+    )
+    display_stacked_bar_chart(
+        df,
+        column_x=COFFEE_FAVORITE,
         column_y=COFFEE_EXPERTISE,
         title="Self-reported coffee expertise (1-10) by Favorite Coffee",
     )
     display_stacked_bar_chart(
         df,
-        column_x=FAVORITE_COFFEE,
+        column_x=COFFEE_FAVORITE,
         column_y=GENDER_HEADER,
         title="Gender by Favorite Coffee",
     )
@@ -193,9 +202,8 @@ def main():
 
     single_dimension_report(df)
 
-    # TODO: somehow demonstrate the scale of each one -- are there supposed to be 0s?
     display_pie_chart(df, GENDER_HEADER)
-    display_pie_chart(df, FAVORITE_COFFEE)
+    display_pie_chart(df, COFFEE_FAVORITE)
     display_pie_chart(df, NUMBER_OF_CHILDREN)
     display_pie_chart(df, HOUSEHOLD_INCOME)
     display_pie_chart(df, POLITICS)
