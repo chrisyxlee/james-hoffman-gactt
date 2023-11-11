@@ -12,6 +12,9 @@ POLITICS = "Political Affiliation"
 EDUCATION_LEVEL = "Education Level"
 HOUSEHOLD_INCOME = "Household Income"
 AGE_HEADER = "What is your age?"
+COFFEE_LOCATION_PREFIX = "Where do you typically drink coffee?"
+COFFEE_EXPERTISE = "Lastly, how would you rate your own coffee expertise?"
+COFFEE_SPEND = "In total, much money do you typically spend on coffee in a month?"
 
 
 def drop_in_place(df: pd.DataFrame, column: str) -> None:
@@ -78,9 +81,11 @@ def frequency_single(df: pd.DataFrame, column: str) -> Tuple[List[Any], List[int
 
     values = []
     counts = []
-    for val, count in frequency.items():
-        values.append(val)
-        counts.append(count)
+    keys = list(frequency.keys())
+    keys.sort()
+    for key in keys:
+        values.append(key)
+        counts.append(frequency[key])
     return values, counts
 
 
@@ -92,8 +97,97 @@ def display_pie_chart(df: pd.DataFrame, column: str) -> None:
     plt.show()
 
 
+def remove_parens(s: str) -> str:
+    return s.strip("() ")
+
+
+def is_safe(x: Any) -> bool:
+    if x is None:
+        return False
+
+    if isinstance(x, float) and np.isnan(x):
+        return False
+
+    return True
+
+
+def display_stacked_bar_chart(
+    df: pd.DataFrame,
+    column_x: str,
+    column_y: str,
+    title: str,
+) -> None:
+    x_labels = [x for x in df[column_x].unique() if is_safe(x)]
+    x_labels.sort()
+    order = {x: i for i, x in enumerate(x_labels)}
+    print(order)
+
+    y_labels = [y for y in df[column_y].unique() if is_safe(y)]
+    y_labels.sort()
+
+    df = df.reset_index()  # make sure indexes pair with number of rows
+    weight_counts: Dict[str, np.array] = {}
+    # {
+    #      "1": np.array([70, 31, 58]),
+    #      "2": np.array([82, 37, 66]),
+    #  }
+    for y_label in y_labels:
+        weight_counts[str(y_label)] = np.zeros(len(x_labels))
+
+    for _, row in df.iterrows():
+        x_val = row[column_x]
+        y_val = row[column_y]
+
+        if not is_safe(x_val) or not is_safe(y_val):
+            continue
+
+        print(f"x_val={x_val}, y_val={y_val}")
+        weight_counts[str(y_val)][order[x_val]] += 1
+
+    width = 0.5
+    fig, ax = plt.subplots()
+    bottom = np.zeros(len(x_labels))
+    for boolean, weight_count in weight_counts.items():
+        p = ax.bar(x_labels, weight_count, width, label=boolean, bottom=bottom)
+        bottom += weight_count
+
+    ax.set_title(title)
+    # Legend on center right
+    legend = ax.legend(
+        loc="center left",
+        bbox_to_anchor=(0.95, 0.5),
+        # reverse ordering
+        labelspacing=-2.5,
+        frameon=False,
+    )
+    #  fig.subplots_adjust(right=0.2)
+    fig.savefig("samplefigure", bbox_inches="tight")
+
+    plt.show()
+
+
 def main():
     df = init_dataframe()
+
+    display_stacked_bar_chart(
+        df,
+        column_x=FAVORITE_COFFEE,
+        column_y=COFFEE_EXPERTISE,
+        title="Self-reported coffee expertise (1-10) by Favorite Coffee",
+    )
+    display_stacked_bar_chart(
+        df,
+        column_x=FAVORITE_COFFEE,
+        column_y=GENDER_HEADER,
+        title="Gender by Favorite Coffee",
+    )
+    display_stacked_bar_chart(
+        df,
+        column_x=COFFEE_EXPERTISE,
+        # TODO: clean for better sorting
+        column_y=HOUSEHOLD_INCOME,
+        title="Self-reported coffee expertise (1-10) by Household Income",
+    )
 
     print(df.columns.unique())
 
@@ -107,11 +201,7 @@ def main():
     display_pie_chart(df, POLITICS)
     display_pie_chart(df, EDUCATION_LEVEL)
     display_pie_chart(df, AGE_HEADER)
-
-
-#  print(df)
-
-# single_dimension_report(df)
+    return
 
 
 if __name__ == "__main__":
