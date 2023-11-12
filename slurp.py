@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import numpy as np
+from itertools import combinations
 import matplotlib.pyplot as plt
 from matplotlib_venn import venn3
 
@@ -22,7 +23,13 @@ COFFEE_FAVORITE = "Lastly, what was your favorite overall coffee?"
 
 
 def filename(s: str) -> str:
-    return s.replace(" ", "-").replace(")", "").replace("(", "").replace("#", "num")
+    return (
+        s.replace(" ", "-")
+        .replace(")", "")
+        .replace("(", "")
+        .replace("#", "num")
+        .replace("?", "")
+    )
 
 
 def drop_in_place(df: pd.DataFrame, column: str) -> None:
@@ -58,8 +65,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
 
 def init_dataframe() -> pd.DataFrame:
     with open("tmp/GACTT_RESULTS_ANONYMIZED.csv", newline="") as f:
-        df = pd.read_csv(f)
-        return clean(df)
+        return clean(pd.read_csv(f))
 
 
 def single_dimension_report(df: pd.DataFrame) -> None:
@@ -103,6 +109,51 @@ def display_pie_chart(df: pd.DataFrame, column: str) -> None:
     ax.set_title(column)
     fig.savefig(f"tmp/pie_{filename(column)}", bbox_inches="tight")
     plt.show()
+
+
+def to_venn3_char(row: Any, subset: List[str]) -> str:
+    c0 = "1" if row[subset[0]] else "0"
+    c1 = "1" if row[subset[1]] else "0"
+    c2 = "1" if row[subset[2]] else "0"
+    return c0 + c1 + c2
+
+
+def display_venn3_diagram(df: pd.DataFrame, column_prefix: str) -> None:
+    columns = df.columns.unique()
+    matched_columns = [c for c in columns if c.startswith(column_prefix)]
+    print(matched_columns)
+
+    column_values = {
+        mc.removeprefix(column_prefix).strip("() "): i
+        for i, mc in enumerate(matched_columns)
+    }
+
+    num_subsets = 3
+    subsets = combinations(column_values, num_subsets)
+    for subset in subsets:
+        results = df.apply(
+            lambda row: to_venn3_char(
+                row, [matched_columns[column_values[s]] for s in subset]
+            ),
+            axis=1,  # rows
+        )
+        results = results.value_counts()
+        for i in range(1, 7):
+            s = "{0:b}".format(i)
+            if s not in results:
+                results[s] = 0
+
+        fig, ax = plt.subplots()
+        v = venn3(subsets=results)
+        v.get_label_by_id("100").set_text(subset[0] + "\n" + str(results["100"]))
+        v.get_label_by_id("010").set_text(subset[1] + "\n" + str(results["010"]))
+        v.get_label_by_id("001").set_text(subset[2] + "\n" + str(results["001"]))
+        ax.set_title(column_prefix)
+        fig.savefig(
+            f"tmp/venn_{filename(column_prefix + '=' + '-'.join(subset))}",
+            bbox_inches="tight",
+        )
+        plt.show()
 
 
 def is_safe(x: Any) -> bool:
@@ -171,6 +222,8 @@ def display_stacked_bar_chart(
 
 def main():
     df = init_dataframe()
+
+    display_venn3_diagram(df, COFFEE_LOCATION_PREFIX)
 
     display_stacked_bar_chart(
         df,
