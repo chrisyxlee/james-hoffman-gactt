@@ -218,6 +218,7 @@ def display_stacked_bar_chart(
         labelspacing=-2.5,
         frameon=False,
     )
+    plt.setp(ax.get_xticklabels(), rotation=30, horizontalalignment="right")
 
     normalized_weight_counts = {k: v for k, v in weight_counts.items()}
     for x_val, idx in order.items():
@@ -248,6 +249,7 @@ def display_stacked_bar_chart(
         labelspacing=-2.5,
         frameon=False,
     )
+    plt.setp(ax.get_xticklabels(), rotation=30, horizontalalignment="right")
 
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
     plt.savefig(f"tmp/bar_{filename(title)}", bbox_inches="tight")
