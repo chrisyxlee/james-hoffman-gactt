@@ -119,6 +119,7 @@ def to_venn3_char(row: Any, subset: List[str]) -> str:
 
 
 def display_venn3_diagram(df: pd.DataFrame, column_prefix: str) -> None:
+    # TODO: put all subplots on the same diagram :^)
     columns = df.columns.unique()
     matched_columns = [c for c in columns if c.startswith(column_prefix)]
     print(matched_columns)
@@ -201,23 +202,55 @@ def display_stacked_bar_chart(
         weight_counts[str(y_val)][order[x_val]] += 1
 
     width = 0.5
-    fig, ax = plt.subplots()
+    ax = plt.subplot(2, 1, 1)
     bottom = np.zeros(len(x_labels))
     for boolean, weight_count in weight_counts.items():
         ax.bar(x_labels, weight_count, width, label=boolean, bottom=bottom)
         bottom += weight_count
 
-    ax.set_title(title)
+    ax.set_title(f"{title} (raw responses)")
+    ax.set_ylabel("# responses")
     # Legend on center right
     ax.legend(
         loc="center left",
-        bbox_to_anchor=(0.95, 0.5),
+        bbox_to_anchor=(1, 0.5),
         # reverse ordering
         labelspacing=-2.5,
         frameon=False,
     )
-    fig.savefig(f"tmp/bar_{filename(title)}", bbox_inches="tight")
 
+    normalized_weight_counts = {k: v for k, v in weight_counts.items()}
+    for x_val, idx in order.items():
+        total = 0.0
+        for y_vals in weight_counts.values():
+            total += y_vals[idx]
+        for y_val in weight_counts.keys():
+            if total == 0:
+                normalized_weight_counts[y_val][idx] = 0
+            else:
+                normalized_weight_counts[y_val][idx] = (
+                    float(weight_counts[y_val][idx]) / float(total)
+                ) * 100
+
+    ax = plt.subplot(2, 1, 2)
+    bottom = np.zeros(len(x_labels))
+    for boolean, weight_count in normalized_weight_counts.items():
+        ax.bar(x_labels, weight_count, width, label=boolean, bottom=bottom)
+        bottom += weight_count
+
+    ax.set_title(f"{title} (normalized)")
+    ax.set_ylabel("% responses")
+    # Legend on center right
+    ax.legend(
+        loc="center left",
+        bbox_to_anchor=(1, 0.5),
+        # reverse ordering
+        labelspacing=-2.5,
+        frameon=False,
+    )
+
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+    plt.savefig(f"tmp/bar_{filename(title)}", bbox_inches="tight")
     plt.show()
 
 
@@ -258,10 +291,6 @@ def main():
         title="Self-reported coffee expertise (1-10) by Household Income",
     )
 
-    print(df.columns.unique())
-
-    single_dimension_report(df)
-
     display_pie_chart(df, GENDER_HEADER)
     display_pie_chart(df, COFFEE_FAVORITE)
     display_pie_chart(df, NUMBER_OF_CHILDREN)
@@ -269,6 +298,9 @@ def main():
     display_pie_chart(df, POLITICS)
     display_pie_chart(df, EDUCATION_LEVEL)
     display_pie_chart(df, AGE_HEADER)
+
+    single_dimension_report(df)
+    print(df.columns.unique())
     return
 
 
