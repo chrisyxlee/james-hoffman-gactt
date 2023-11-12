@@ -166,6 +166,7 @@ def is_safe(x: Any) -> bool:
     return True
 
 
+# TODO: display normalized bar chart of relative percentages
 def display_stacked_bar_chart(
     df: pd.DataFrame,
     column_x: str,
@@ -230,6 +231,12 @@ def main():
         column_x=AGE_HEADER,
         column_y=COFFEE_CUPS,
         title="# cups of coffee by age",
+    )
+    display_stacked_bar_chart(
+        df,
+        column_x=HOUSEHOLD_INCOME,
+        column_y=COFFEE_CUPS,
+        title="# cups of coffee by Household Income",
     )
     display_stacked_bar_chart(
         df,
