@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Tuple
+import math
 
 import pandas as pd
 import numpy as np
@@ -181,7 +182,6 @@ def to_venn3_char(row: Any, subset: List[str]) -> str:
 
 
 def display_venn3_diagram(df: pd.DataFrame, column_prefix: str) -> None:
-    # TODO: put all subplots on the same diagram :^)
     columns = df.columns.unique()
     matched_columns = [c for c in columns if c.startswith(column_prefix)]
     print(matched_columns)
@@ -192,8 +192,11 @@ def display_venn3_diagram(df: pd.DataFrame, column_prefix: str) -> None:
     }
 
     num_subsets = 3
-    subsets = combinations(column_values, num_subsets)
-    for subset in subsets:
+    subsets = list(combinations(column_values, num_subsets))
+    total_subset = len(subsets)
+    num_columns = 2
+    num_rows = int(math.ceil(total_subset / num_columns))
+    for idx, subset in enumerate(subsets):
         results = df.apply(
             lambda row: to_venn3_char(
                 row, [matched_columns[column_values[s]] for s in subset]
@@ -206,17 +209,18 @@ def display_venn3_diagram(df: pd.DataFrame, column_prefix: str) -> None:
             if s not in results:
                 results[s] = 0
 
-        fig, ax = plt.subplots()
+        ax = plt.subplot(num_rows, num_columns, idx + 1)
         v = venn3(subsets=results)
         v.get_label_by_id("100").set_text(subset[0] + "\n" + str(results["100"]))
         v.get_label_by_id("010").set_text(subset[1] + "\n" + str(results["010"]))
         v.get_label_by_id("001").set_text(subset[2] + "\n" + str(results["001"]))
         ax.set_title(column_prefix)
-        fig.savefig(
-            f"tmp/venn_{filename(column_prefix + '=' + '-'.join(subset))}",
-            bbox_inches="tight",
-        )
-        plt.show()
+
+    plt.savefig(
+        f"tmp/venn_{filename(column_prefix + '=' + '-'.join(subset))}",
+        bbox_inches="tight",
+    )
+    plt.show()
 
 
 def is_safe(x: Any) -> bool:
@@ -356,6 +360,12 @@ def main():
         column_x=COFFEE_EXPERTISE,
         column_y=HOUSEHOLD_INCOME,
         title="Self-reported coffee expertise (1-10) by Household Income",
+    )
+    display_stacked_bar_chart(
+        df,
+        column_x=HOUSEHOLD_INCOME,
+        column_y=COFFEE_EXPERTISE,
+        title="Household Income by Self-reported coffee expertise (1-10)",
     )
 
     display_pie_chart(df, GENDER_HEADER)
