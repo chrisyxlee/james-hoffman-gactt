@@ -11,9 +11,7 @@ GENDER_HEADER = "Gender"
 NUMBER_OF_CHILDREN = "Number of Children"
 POLITICS = "Political Affiliation"
 EDUCATION_LEVEL = "Education Level"
-# TODO: fix sorting for this column
 HOUSEHOLD_INCOME = "Household Income"
-# TODO: fix sorting for this column
 AGE_HEADER = "What is your age?"
 COFFEE_LOCATION_PREFIX = "Where do you typically drink coffee?"
 COFFEE_EXPERTISE = "Lastly, how would you rate your own coffee expertise?"
@@ -34,6 +32,69 @@ def filename(s: str) -> str:
 
 def drop_in_place(df: pd.DataFrame, column: str) -> None:
     df.drop(column, axis=1, inplace=True)
+
+
+def custom_sort_key(item):
+    if not isinstance(item, str):
+        return item
+
+    string_to_value = {
+        "nan": float("-inf"),  # Handle "nan" values
+        # Household income
+        "<$25,000": 0,
+        "$25,000 - $49,999": 1,
+        "$50,000 - $74,999": 2,
+        "$75,000 - $99,999": 3,
+        "$100,000 - $149,999": 4,
+        ">$150,000": 5,
+        # Age
+        "<18 years old": 10,
+        "18-24 years old": 11,
+        "25-34 years old": 12,
+        "35-44 years old": 13,
+        "45-54 years old": 14,
+        "55-64 years old": 15,
+        ">65 years old": 16,
+        # Education
+        "Less than high school": 20,
+        "High school graduate": 21,
+        "Some college or associate's degree": 22,
+        "Bachelor's degree": 23,
+        "Master's degree": 24,
+        "Doctorate or professional degree": 25,
+        # Politics
+        "No affiliation": 30,
+        "Independent": 31,
+        "Democrat": 32,
+        "Republican": 33,
+    }
+    if item in string_to_value:
+        return string_to_value[item]
+
+    return item
+
+
+def custom_sort_key_wrapper(item):
+    k = custom_sort_key(item)
+    print(f"item {item} yieled {k}")
+    return k
+
+
+def show_unique_values(df: pd.DataFrame, column: str):
+    print(f"Showing unique values for {column}")
+    series = list(df[column].unique())
+    print(f"raw = {series}")
+    print(f"sorted = {sorted(series, key=custom_sort_key_wrapper)}")
+
+
+def transform_household_income(x: str) -> str:
+    if isinstance(x, str):
+        if x == "Under $25,000":
+            return "<$25,000"
+        elif x == "$150,000 or more":
+            return ">$150,000"
+
+    return x
 
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
@@ -60,6 +121,8 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     drop_in_place(df, "Where else do you purchase coffee?")
     drop_in_place(df, "How else do you brew coffee at home?")
     drop_in_place(df, ZIP_CODE_HEADER)
+
+    df[HOUSEHOLD_INCOME] = df[HOUSEHOLD_INCOME].apply(transform_household_income)
     return df
 
 
@@ -94,8 +157,7 @@ def frequency_single(df: pd.DataFrame, column: str) -> Tuple[List[Any], List[int
 
     values = []
     counts = []
-    keys = list(frequency.keys())
-    keys.sort()
+    keys = sorted(list(frequency.keys()), key=custom_sort_key_wrapper)
     for key in keys:
         values.append(key)
         counts.append(frequency[key])
@@ -174,13 +236,14 @@ def display_stacked_bar_chart(
     column_y: str,
     title: str,
 ) -> None:
-    x_labels = [x for x in df[column_x].unique() if is_safe(x)]
-    x_labels.sort()
+    x_labels = sorted(
+        [x for x in df[column_x].unique() if is_safe(x)], key=custom_sort_key_wrapper
+    )
     order = {x: i for i, x in enumerate(x_labels)}
-    print(order)
 
-    y_labels = [y for y in df[column_y].unique() if is_safe(y)]
-    y_labels.sort()
+    y_labels = sorted(
+        [y for y in df[column_y].unique() if is_safe(y)], key=custom_sort_key_wrapper
+    )
 
     df = df.reset_index()  # make sure indexes pair with number of rows
     weight_counts: Dict[str, np.array] = {}
@@ -198,7 +261,6 @@ def display_stacked_bar_chart(
         if not is_safe(x_val) or not is_safe(y_val):
             continue
 
-        print(f"x_val={x_val}, y_val={y_val}")
         weight_counts[str(y_val)][order[x_val]] += 1
 
     width = 0.5
@@ -258,6 +320,10 @@ def display_stacked_bar_chart(
 
 def main():
     df = init_dataframe()
+    # show_unique_values(df, HOUSEHOLD_INCOME)
+    # show_unique_values(df, AGE_HEADER)
+    # show_unique_values(df, EDUCATION_LEVEL)
+    # show_unique_values(df, POLITICS)
 
     display_venn3_diagram(df, COFFEE_LOCATION_PREFIX)
 
@@ -288,7 +354,6 @@ def main():
     display_stacked_bar_chart(
         df,
         column_x=COFFEE_EXPERTISE,
-        # TODO: clean for better sorting
         column_y=HOUSEHOLD_INCOME,
         title="Self-reported coffee expertise (1-10) by Household Income",
     )
