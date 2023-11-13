@@ -41,6 +41,7 @@ def custom_sort_key(item):
 
     string_to_value = {
         "nan": float("-inf"),  # Handle "nan" values
+        "Other": float("inf"),
         # Household income
         "<$25,000": 0,
         "$25,000 - $49,999": 1,
@@ -68,6 +69,11 @@ def custom_sort_key(item):
         "Independent": 31,
         "Democrat": 32,
         "Republican": 33,
+        # Where do you drink coffee?
+        "Home": 41,
+        "On the go": 42,
+        "Office": 43,
+        "Cafe": 44,
     }
     if item in string_to_value:
         return string_to_value[item]
@@ -77,7 +83,7 @@ def custom_sort_key(item):
 
 def custom_sort_key_wrapper(item):
     k = custom_sort_key(item)
-    print(f"item {item} yieled {k}")
+    print(f"SORT: key({item}) = {k}")
     return k
 
 
@@ -96,6 +102,21 @@ def transform_household_income(x: str) -> str:
             return ">$150,000"
 
     return x
+
+
+def transform_coffee_location(df: pd.DataFrame) -> pd.DataFrame:
+    subvalues = {
+        "At home": "Home",
+        "At the office": "Office",
+        "At a cafe": "Cafe",
+        "None of these": "Other",
+    }
+    for old, new in subvalues.items():
+        df[f"{COFFEE_LOCATION_PREFIX} ({new})"] = df[
+            f"{COFFEE_LOCATION_PREFIX} ({old})"
+        ]
+        drop_in_place(df, f"{COFFEE_LOCATION_PREFIX} ({old})")
+    return df
 
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
@@ -124,6 +145,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     drop_in_place(df, ZIP_CODE_HEADER)
 
     df[HOUSEHOLD_INCOME] = df[HOUSEHOLD_INCOME].apply(transform_household_income)
+    df = transform_coffee_location(df)
     return df
 
 
@@ -217,7 +239,7 @@ def display_venn3_diagram(df: pd.DataFrame, column_prefix: str) -> None:
         ax.set_title(column_prefix)
 
     plt.savefig(
-        f"tmp/venn_{filename(column_prefix + '=' + '-'.join(subset))}",
+        f"tmp/venn_{filename(column_prefix + '=' + '-'.join(column_values))}",
         bbox_inches="tight",
     )
     plt.show()
